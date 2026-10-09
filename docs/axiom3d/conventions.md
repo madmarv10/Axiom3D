@@ -5,7 +5,9 @@ is the full spec, loaded on demand via `references` config in `.opencode/opencod
 
 ## Status
 
-Skeleton — values finalized during Phase 2/3 alongside the validator implementation.
+Finalized in Phase 3 alongside the gate implementation. Enforced by `blender_validate`
+(scene lint) and gate stages 4 (geometry) + 5 (mesh quality); the gate report carries
+the issue vocabulary below as structured evidence.
 
 ## Scale
 
@@ -34,8 +36,9 @@ Skeleton — values finalized during Phase 2/3 alongside the validator implement
   `["open_surface"]` custom property).
 - No zero-area faces, no flipped normals, triangulated consistently.
 - UV layer present on every renderable mesh.
-- Poly budget per asset class: TBD Phase 3 (gate stage 4 reads budget from asset
-  metadata, default cap applies when absent).
+- Poly budget per asset class: default cap is 100,000 evaluated verts per mesh
+  (gate param `poly_budget` overrides); per-asset-class budgets land with the
+  template library in Phase 4.
 
 ## Materials
 
@@ -45,5 +48,9 @@ Skeleton — values finalized during Phase 2/3 alongside the validator implement
 
 ## Export
 
-- glTF default, 1 unit = 1 m, Y-up handled by exporter, apply modifiers before export.
-- Roundtrip check (gate stage 6) must pass: bounds within 1%, vertex count within 1%.
+- glTF default, 1 unit = 1 m, Y-up handled by exporter, apply modifiers before export
+  (`export_apply` on Blender 5.2's glTF exporter).
+- Roundtrip check (gate stage 6) must pass: mesh object count exact, world bounds
+  within 1%, triangle count within 1%. Vertex counts are reported but not compared —
+  the glTF exporter splits vertices per unique normal/UV, so they change legitimately
+  across a roundtrip.

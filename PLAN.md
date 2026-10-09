@@ -123,16 +123,26 @@ timeout; on timeout it kills and restarts the worker, restoring last snapshot.
   Tool-layer tests cover the flow; live opencode session check pending.
 
 ### Phase 3 — Verification gate
-- [ ] `blender/gate/` staged pipeline per architecture section above
-- [ ] `blender/api_index.py` symbol index builder
-- [ ] Install `trimesh` into Blender's bundled Python via `pip install --target`,
+- [x] `blender/gate/` staged pipeline per architecture section above
+      (rpc/ handler split also landed: worker.py is now transport-only)
+- [x] `blender/api_index.py` symbol index builder — dir() walk (getattr on missing
+      bpy.ops names does NOT raise, so hasattr lies), cached to
+      `.axiom3d/api_index.json` keyed by Blender version
+- [x] Install `trimesh` into Blender's bundled Python via `pip install --target`,
   pinned in `blender/requirements.txt`. Used after the evaluated-mesh checks: volume,
-  self-intersection, cross-object intersection, export sanity (mesh passes depsgraph
-  checks but still broken as an asset)
-- [ ] Fixture tests per failure class: bad API name, syntax error, non-manifold result,
-  scale violation, self-intersecting mesh (trimesh stage)
+  watertight/winding. Intersections (self + cross-object) use Blender 5.x native
+  MANIFOLD booleans through the depsgraph — in-process, no subprocess
+- [x] Fixture tests per failure class (`blender/tests/gate.test.ts`): bad API name
+  (with suggestion), syntax error, runtime error, non-manifold + open_surface
+  opt-out, flipped face, scale violation, default/bad names, empty scene,
+  self-intersecting shells, cross-object overlap, full-pipeline happy path
+- Extra fixes found along the way: glTF export on 5.2 uses `export_apply`
+  (old `use_mesh_modifiers` had been silently dropped by the RNA filter);
+  snapshot prune is mtime-ordered (name order evicted a restarted worker's
+  fresh checkpoints); test files must run single-worker
+  (`bun test --parallel=1 --no-isolate`) because they share one Blender.
 - Deliverable: hallucinated API name fails at stage 2 with a suggestion, never crashes
-  the worker.
+  the worker. **DONE.** Verified 2026-10-09: 31/31 (worker 11, tools 7, gate 13).
 
 ### Phase 4 — Template asset library
 - [ ] Builder scripts produce `axiom3d_library.blend`: GN groups (rail segment, sleeper
@@ -166,7 +176,9 @@ timeout; on timeout it kills and restarts the worker, restoring last snapshot.
 
 ## Verification
 
-- `pytest blender/tests` (run with Blender's bundled Python: `blender --background --python -m pytest` equivalent, or `py -c` runner documented in Phase 0)
+- `bun test --parallel=1 --no-isolate` from `blender/` (spawns a real headless Blender;
+  all test files share one worker through the port file, so parallel file workers must
+  stay off — they race the scene and the snapshot pool)
 - `bun typecheck` from `packages/opencode` after TS changes (repo AGENTS.md rule)
 - Milestone demos: crate -> platform segment -> full station. Each ends with gate report
   JSON + multi-view render + export roundtrip pass.

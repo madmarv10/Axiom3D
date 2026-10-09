@@ -1,6 +1,8 @@
 // Worker protocol + client restart/restore tests for the Axiom3D Blender harness.
-// Spawns a real headless Blender. Run from blender/:  bun test
-// (~30-60s total: worker startup + renders)
+// Spawns a real headless Blender. Run from blender/:
+//   bun test --parallel=1 --no-isolate
+// (all test files share one worker through the port file; parallel file workers
+// race the scene and snapshot pool). ~30-60s total: worker startup + renders
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { join } from "node:path"

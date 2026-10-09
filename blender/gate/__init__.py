@@ -1,0 +1,1 @@
+"""Staged verification gate: syntax -> API symbols -> exec -> geometry -> quality -> roundtrip -> render."""

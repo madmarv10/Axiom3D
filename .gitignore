@@ -39,3 +39,7 @@ tsconfig.tsbuildinfo
 
 # graphify knowledge graph — regenerable local tool output (85M AST cache + graph)
 graphify-out/
+
+# Axiom3D: pip --target deps for Blender's bundled Python (machine-local)
+blender/vendor/
+__pycache__/
