@@ -33,3 +33,9 @@ logs/
 *.bun-build
 tsconfig.tsbuildinfo
 /artifacts/
+
+# Axiom3D Blender harness runtime state (port file, snapshots, renders, logs)
+.axiom3d/
+
+# graphify knowledge graph — regenerable local tool output (85M AST cache + graph)
+graphify-out/

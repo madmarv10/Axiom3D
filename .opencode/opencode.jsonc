@@ -11,6 +11,11 @@
       "path": "~/.local/share/opencode",
       "description": "Contains opencode logs and data",
     },
+    "axiom3d-conventions": {
+      "path": "../docs/axiom3d/conventions.md",
+      "description":
+        "Blender scene conventions for Axiom3D assets: unit scale, origin placement, naming, mesh health, materials, export rules. Consult when authoring or validating 3D assets.",
+    },
   },
   "mcp": {},
   "tools": {
