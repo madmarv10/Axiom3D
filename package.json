@@ -5,6 +5,9 @@
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.14",
+  "bin": {
+    "axiom3d": "./script/axiom3d.ts"
+  },
   "scripts": {
     "dev": "bun run --cwd packages/opencode src/index.ts",
     "dev:desktop": "bun --cwd packages/desktop dev",
