@@ -109,6 +109,7 @@ print("made crate")`,
   })
 
   test("render attaches a data-URL PNG", async () => {
+    // generous timeout: CI renders via software GL (llvmpipe under Xvfb)
     const result = (await tools.render.execute(
       { engine: "workbench", width: 320, height: 180, views: ["front"] },
       context,
@@ -117,7 +118,7 @@ print("made crate")`,
     expect(result.attachments[0].mime).toBe("image/png")
     expect(result.attachments[0].url.startsWith("data:image/png;base64,")).toBe(true)
     expect(result.output).toContain(".png")
-  }, 120_000)
+  }, 240_000)
 
   test("export resolves relative path against project", async () => {
     const output = (await tools.export.execute(

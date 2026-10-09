@@ -90,17 +90,19 @@ for obj in list(bpy.data.objects):
 
 describe("render and export", () => {
   test("workbench multi-view render writes PNGs", async () => {
+    // timeout is generous: CI renders via software GL (llvmpipe under Xvfb), slower
+    // than a GPU. Workbench is CPU-only but still needs a GL context.
     const result = await request<{ files: string[]; engine_used: string }>(
       "render",
       { engine: "WORKBENCH", views: ["front", "iso"], width: 320, height: 180 },
-      120_000,
+      240_000,
     )
     expect(result.engine_used).toBe("BLENDER_WORKBENCH")
     expect(result.files.length).toBe(2)
     for (const file of result.files) {
       expect(await Bun.file(file).exists()).toBe(true)
     }
-  }, 120_000)
+  }, 240_000)
 
   test("glb export writes bytes", async () => {
     const path = join(ROOT, ".axiom3d", "test", "crate.glb")

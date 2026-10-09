@@ -67,12 +67,20 @@ jobs:
       - name: Run typecheck
         run: bun typecheck
 
+      # Blender's render pipeline creates an OpenGL context even for Workbench, so a
+      # headless runner needs a virtual display (Xvfb) + software GL or render hangs.
+      - name: Install headless render deps (Xvfb + software GL)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb libgl1-mesa-dri mesa-utils
+
       - name: Build + validate template library
         env:
           BLENDER_PATH: ${{ github.workspace }}/.blender/blender
         run: |
           set -uo pipefail
-          "$BLENDER_PATH" --background --factory-startup --python blender/templates/build_library.py 2>&1 | tee /tmp/build-library.log
+          xvfb-run -a "$BLENDER_PATH" --background --factory-startup --python blender/templates/build_library.py 2>&1 | tee /tmp/build-library.log
           grep -q "BUILD OK" /tmp/build-library.log
 
       - name: Validate pattern cookbook
@@ -80,13 +88,14 @@ jobs:
           BLENDER_PATH: ${{ github.workspace }}/.blender/blender
         run: |
           set -uo pipefail
-          "$BLENDER_PATH" --background --factory-startup --python blender/corpus/validate_patterns.py 2>&1 | tee /tmp/validate-patterns.log
+          xvfb-run -a "$BLENDER_PATH" --background --factory-startup --python blender/corpus/validate_patterns.py 2>&1 | tee /tmp/validate-patterns.log
           grep -q "PATTERNS OK" /tmp/validate-patterns.log
 
       - name: Run harness test suite (headless, Workbench)
         env:
           BLENDER_PATH: ${{ github.workspace }}/.blender/blender
+          LIBGL_ALWAYS_SOFTWARE: "1"
         timeout-minutes: 25
         run: |
           cd blender
-          bun test --parallel=1 --no-isolate
+          xvfb-run -a bun test --parallel=1 --no-isolate
