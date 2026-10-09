@@ -1,4 +1,4 @@
-// Phase 2 tool-layer tests: exercises the eight .opencode/tools/blender-* tools against
+// Phase 2 tool-layer tests: exercises the nine .opencode/tools/blender-* tools against
 // a live worker, the way the agent will call them. Run from blender/:
 //   bun test --parallel=1 --no-isolate
 
@@ -13,6 +13,7 @@ import blenderRender from "../../.opencode/tools/blender-render"
 import blenderExport from "../../.opencode/tools/blender-export"
 import blenderGate from "../../.opencode/tools/blender-gate"
 import blenderTemplate from "../../.opencode/tools/blender-template"
+import blenderDocs from "../../.opencode/tools/blender-docs"
 import { request, status, stop } from "../../.opencode/lib/blender-client"
 
 const ROOT = join(import.meta.dir, "..", "..")
@@ -37,6 +38,7 @@ const tools = {
   export: blenderExport,
   gate: blenderGate,
   template: blenderTemplate,
+  docs: blenderDocs,
 }
 
 beforeAll(async () => {
@@ -49,7 +51,7 @@ afterAll(() => {
 })
 
 describe("tool shape", () => {
-  test("eight tools, each with description, args, execute", () => {
+  test("nine tools, each with description, args, execute", () => {
     for (const [name, definition] of Object.entries(tools)) {
       expect(typeof definition.description, name).toBe("string")
       expect(definition.description.length, name).toBeGreaterThan(40)

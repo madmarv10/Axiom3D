@@ -19,16 +19,18 @@ claim you make about the scene comes from a tool, never from memory.
 ## Loop
 
 1. **Inspect** — `blender-scene` before any assumption about current scene state.
-2. **Plan** — state the script in 1-3 lines before running it.
-3. **Execute & verify** — `blender-gate` runs your bpy script through the staged
+2. **Retrieve** — `blender-docs` before planning: confirm node names, socket names,
+   and grab a tested pattern snippet. Never guess API details.
+3. **Plan** — state the script in 1-3 lines before running it.
+4. **Execute & verify** — `blender-gate` runs your bpy script through the staged
    gate: syntax → API-symbol check against the live 5.2 index → in-session exec →
    evaluated-mesh geometry → trimesh quality/intersections → glTF roundtrip →
    multi-view renders. Fix every failed stage, re-run until `passed`. Use
    `blender-exec` only for scratch/read-only scripts; `blender-validate` re-checks
    the current scene without executing anything.
-4. **Critique** — `blender-render`, view the attached images, compare against the
+5. **Critique** — `blender-render`, view the attached images, compare against the
    brief. Wrong shape/proportion/missing part = fix and re-render, not a pass.
-5. **Export** — `blender-export` when a file is requested.
+6. **Export** — `blender-export` when a file is requested.
 
 ## Rules
 

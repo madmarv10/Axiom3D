@@ -49,8 +49,8 @@ Axiom3D/
 │   ├── geom/                      evaluated-mesh checks
 │   ├── templates/                 template library builder + instantiate API
 │   ├── api_index.py               live bpy symbol index for hallucination checks
-│   ├── corpus/                    version-pinned doc fetch/index
-│   └── tests/                     bun test (worker/tools/gate/templates)
+│   ├── corpus/                    live bpy introspection + pattern cookbook + breaking changes
+│   └── tests/                     bun test (worker/tools/gate/templates/corpus)
 └── docs/axiom3d/conventions.md    scale, origin, naming rules
 ```
 
@@ -170,16 +170,26 @@ timeout; on timeout it kills and restarts the worker, restoring last snapshot.
   checks use the EXACT solver.
 
 ### Phase 5 — API doc retrieval
-- [ ] `blender/corpus/`: fetch + index Blender 5.2 API docs, 5.0-5.2 release-note breaking
-  changes, local installed add-on docs
-- [ ] Library pattern cookbook — single source in `blender/corpus/examples/`, retrieved
-  on demand (not in standing prompt): tested Blender 5.2 snippets for `bpy` data API,
-  `bmesh` edit loops, depsgraph `to_mesh()`, `numpy` vectorized layout, `mathutils`
-  matrices/KDTree/BVH, GN group input wiring, template instantiation. Each snippet
-  validated by a pytest fixture — no dead examples
-- [ ] `blender_docs` returns runnable pattern code, not only API signatures
-- [ ] `blender_docs` grep tool; wire into agent workflow step "retrieve before plan"
-- Deliverable: query "Principled BSDF sockets in 5.2" returns correct, version-true list.
+- [x] `blender/corpus/` — API source is **live introspection of the installed Blender**
+  (corpus/introspect.py), not a docs.blender.org fetch: reading sockets/methods straight
+  from the pinned 5.2 install is version-true by construction and cannot drift from the
+  runtime the way fetched docs can. Resolves human names ("Principled BSDF") to bpy.types
+  node classes via camelCase-token scoring, instantiates in a throwaway tree, lists real
+  sockets. Breaking changes (5.0-5.2 renames this harness hit) are hand-curated in
+  corpus/breaking_changes.py
+- [x] Library pattern cookbook — `blender/corpus/examples/`: 8 tested Blender 5.2 snippets
+  (depsgraph to_mesh, bmesh edit, numpy layout, mathutils Matrix + KDTree, Principled
+  sockets, GN modifier inputs, template instantiate). Retrieved on demand via
+  `blender_docs`, never in the standing prompt. Runtime execution validated by
+  `blender/corpus/validate_patterns.py` (a build-time script — Bun.spawn of Blender
+  segfaults Bun 1.4.2 on Windows, so the live check lives there, not in the bun suite)
+- [x] `docs` worker command + `blender-docs` tool return introspected sockets + runnable
+  pattern code + matching breaking changes, not just signatures
+- [x] Wire into agent workflow: "Retrieve" step before "Plan" (axiom3d.md)
+- Deliverable: query "Principled BSDF sockets in 5.2" returns the correct, version-true
+  32-socket list (Base Color, Metallic, Roughness, ...) read from the live install.
+  **DONE.** Verified 2026-10-09: 43/43 (worker 11, tools 7, gate 13, templates 6,
+  corpus 6).
 
 ### Phase 6 — Promotion / packaging (after stable)
 - [ ] Optionally promote tools into `packages/core/src/tool/` builtins and/or wrap client
