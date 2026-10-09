@@ -39,18 +39,18 @@ staged verification gate + template asset library + version-pinned API docs.
 Axiom3D/
 ├── PLAN.md                        this file
 ├── .opencode/
-│   ├── tool/blender-*.ts          thin TS tools (Phase 2)
+│   ├── tools/blender-*.ts         thin TS tools (Phase 2/4)
 │   ├── lib/blender-client.ts      TS worker client: spawn, RPC, timeout, restart
 │   └── agent/axiom3d.md           agent workflow: request -> retrieve -> plan -> exec -> gate
 ├── blender/                       harness core, zero opencode dependencies
 │   ├── worker.py                  persistent session, JSON-RPC loop, snapshot/restore
-│   ├── rpc/                       command handlers (exec, query, render, export, validate)
+│   ├── rpc/                       command handlers (exec, query, render, export, validate, gate, templates)
 │   ├── gate/                      staged verification pipeline
 │   ├── geom/                      evaluated-mesh checks
 │   ├── templates/                 template library builder + instantiate API
 │   ├── api_index.py               live bpy symbol index for hallucination checks
 │   ├── corpus/                    version-pinned doc fetch/index
-│   └── tests/                     pytest
+│   └── tests/                     bun test (worker/tools/gate/templates)
 └── docs/axiom3d/conventions.md    scale, origin, naming rules
 ```
 
@@ -145,15 +145,29 @@ timeout; on timeout it kills and restarts the worker, restoring last snapshot.
   the worker. **DONE.** Verified 2026-10-09: 31/31 (worker 11, tools 7, gate 13).
 
 ### Phase 4 — Template asset library
-- [ ] Builder scripts produce `axiom3d_library.blend`: GN groups (rail segment, sleeper
-  array along curve, canopy truss, column grid, fence run, platform outline) + procedural
-  PBR material groups, all with exposed inputs
-- [ ] Worker API: `list_templates()`, `instantiate(template, params)`
-- [ ] Build-time gate validation of every template
-- [ ] Blender-side deps (shapely/numpy if needed) via `pip install --target` into bundled
-  Python, pinned in `blender/requirements.txt`
-- Deliverable (milestone): industrial railway station — platform + track + canopy from
-  templates, full gate pass, 6-view render, export roundtrip pass.
+- [x] Builder scripts produce template GN groups + PBR materials (`blender/templates/`):
+  rail segment, sleeper array, column grid, fence run, platform outline, canopy truss,
+  concrete + steel. All cube-based (Cube node emits UVs) with exposed float inputs;
+  sleeper/fence/truss instance cubes along a self-generated centered CurveLine.
+  `build_library.py` builds in-process (no .blend required by the worker) and can
+  `--save` a library for GUI editing
+- [x] Worker API: `list_templates`, `instantiate` (rpc/templates.py) + a `blender-template`
+  agent tool (list + instantiate). instantiate bakes via depsgraph `new_from_object`,
+  grounds (zmin→0), box-projects UVs, and sets inputs through
+  `mod.properties.inputs[ident]["value"]` (Blender 5.2 moved GN modifier inputs off
+  idproperties). Numeric params coerced to float (ints don't stick on float slots)
+- [x] Build-time gate validation of every template (build_library.py runs stage 4+5
+  checks per template; multi-part assemblies like the truss/fence carry an
+  `assembly` opt-out so intentional joint overlaps don't trip self-intersection)
+- [x] Blender-side deps: none new beyond the Phase 3 trimesh pin (templates use only
+  bpy/numpy builtins)
+- Milestone (deliverable): industrial railway station — platform + track (rails +
+  sleepers) + canopy (columns + truss) assembled from templates, full gate pass,
+  6-view render, export roundtrip pass. Covered by the station test in
+  `blender/tests/templates.test.ts`. **DONE.** Verified 2026-10-09: 37/37 (worker 11,
+  tools 7, gate 13, templates 6). MANIFOLD booleans crashed Blender on multi-shell
+  template geometry, so self-intersection detection is AABB-based and cross-object
+  checks use the EXACT solver.
 
 ### Phase 5 — API doc retrieval
 - [ ] `blender/corpus/`: fetch + index Blender 5.2 API docs, 5.0-5.2 release-note breaking

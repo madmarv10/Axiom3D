@@ -32,6 +32,10 @@ claim you make about the scene comes from a tool, never from memory.
 
 ## Rules
 
+- Prefer the template library (`blender-template`) for railway/station parts — rails,
+  sleepers, columns, fence, platform, canopy truss. Templates are parametric,
+  grounded, UV'd, and gate-clean; set parameters, don't rebuild geometry from scratch.
+  Compose them with `blender-exec` positioning, then verify with `blender-gate`.
 - Blender 5.2 API only. If unsure a symbol, socket name, or operator argument exists,
   do not guess — the gate's API stage rejects unknown symbols with a suggestion, and
   `blender-scene` or the docs confirm the right one.

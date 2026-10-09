@@ -1,9 +1,10 @@
 """RPC command registry. Handlers never touch sockets; worker.py owns the transport
 (TCP, main-thread jobs pump, watchdog). Commands: ping (answered from STATE without
-the pump), exec, snapshot, restore, reset, query, render, export, validate, gate."""
+the pump), exec, snapshot, restore, reset, query, render, export, validate, gate,
+list_templates, instantiate."""
 
 from rpc.base import ExecScriptError, WorkerError, require_live
-from rpc import export, gate, render, session, validate
+from rpc import export, gate, render, session, templates, validate
 
 COMMANDS = {
     "exec": session.cmd_exec,
@@ -15,6 +16,8 @@ COMMANDS = {
     "export": export.cmd_export,
     "validate": validate.cmd_validate,
     "gate": gate.cmd_gate,
+    "list_templates": templates.cmd_list_templates,
+    "instantiate": templates.cmd_instantiate,
 }
 
 

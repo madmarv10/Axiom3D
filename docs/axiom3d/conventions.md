@@ -34,6 +34,10 @@ the issue vocabulary below as structured evidence.
 
 - Manifold: no non-manifold edges (except intentional open surfaces: declared via
   `["open_surface"]` custom property).
+- No self-intersection: separate shells must not overlap (except intentional
+  multi-part assemblies — truss chords + web posts, fence posts + rail — declared
+  via the `["assembly"]` custom property; `blender-template` sets this on
+  canopy_truss and fence_run).
 - No zero-area faces, no flipped normals, triangulated consistently.
 - UV layer present on every renderable mesh.
 - Poly budget per asset class: default cap is 100,000 evaluated verts per mesh

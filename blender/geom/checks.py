@@ -140,31 +140,25 @@ def mesh_quality_report(volume_epsilon=1e-6):
 
     pair_checks = 0
     for name, (shape, verts, tris) in local_shapes.items():
+        obj = bpy.data.objects.get(name)
+        if obj is not None and "assembly" in obj:
+            continue  # multi-part asset whose members overlap at joints by design
         groups = _face_components(shape)
         if len(groups) < 2:
             continue
+        # Separate shells whose AABBs overlap are almost certainly jammed-together
+        # primitives. Detect via AABB only — running booleans across many
+        # interpenetrating components crashed the MANIFOLD solver (native
+        # access violation), and AABB overlap is the signal we actually want.
         component_bounds = []
         for group in groups:
             ids = _unique_face_verts(shape, group)
             component_bounds.append(_verts_bounds([verts[i] for i in ids]))
-        temps = []
-        try:
-            for index, group in enumerate(groups):
-                ids = _unique_face_verts(shape, group)
-                temps.append(_temp_object(f"axiom3d_gate_comp_{index}", [verts[i] for i in ids], [tris[f] for f in group]))
-            for i in range(len(temps)):
-                for j in range(i + 1, len(temps)):
-                    if not _bounds_overlap(component_bounds[i], component_bounds[j]):
-                        continue
+        for i in range(len(component_bounds)):
+            for j in range(i + 1, len(component_bounds)):
+                if _bounds_overlap(component_bounds[i], component_bounds[j]):
                     pair_checks += 1
-                    volume = _boolean_intersect_volume(temps[i], temps[j])
-                    if volume is None:
-                        add(name, "boolean_failed", f"MANIFOLD solver failed on components {i},{j}", "warning")
-                    elif volume > volume_epsilon:
-                        add(name, "self_intersection", f"components {i},{j} overlap, intersection volume={volume:.6f}")
-        finally:
-            for temp in temps:
-                bpy.data.objects.remove(temp, do_unlink=True)
+                    add(name, "self_intersection", f"components {i},{j} overlap (separate shells intersect)")
 
     names = sorted(worlds)
     for i in range(len(names)):
@@ -176,7 +170,7 @@ def mesh_quality_report(volume_epsilon=1e-6):
                 bpy.data.objects[names[i]], bpy.data.objects[names[j]]
             )
             if volume is None:
-                add(names[i], "boolean_failed", f"MANIFOLD solver failed on pair {names[i]},{names[j]}", "warning")
+                add(names[i], "boolean_failed", f"boolean solver failed on pair {names[i]},{names[j]}", "warning")
             elif volume > volume_epsilon:
                 add(
                     names[i],
@@ -245,20 +239,13 @@ def _bounds_overlap(first, second, padding=1e-9):
     )
 
 
-def _temp_object(name, verts, faces):
-    mesh = bpy.data.meshes.new(name)
-    mesh.from_pydata([tuple(v) for v in verts], [], [tuple(int(i) for i in f) for f in faces])
-    mesh.update()
-    obj = bpy.data.objects.new(name, mesh)
-    bpy.context.scene.collection.objects.link(obj)
-    return obj
-
-
 def _boolean_intersect_volume(source, target):
-    """INTERSECT volume between two mesh objects via a temporary MANIFOLD modifier.
+    """INTERSECT volume between two mesh objects via a temporary EXACT boolean.
 
-    Returns None when the solver refuses the input (non-manifold, etc.) — callers
-    report that as boolean_failed evidence instead of guessing.
+    EXACT (the classic BMesh solver) is used rather than MANIFOLD because MANIFOLD
+    hard-crashed Blender (native access violation) on some multi-shell template
+    geometry during verification. Returns None when the solver refuses the input —
+    callers report that as boolean_failed evidence instead of guessing.
     """
     temp = source.copy()
     temp.data = source.data.copy()
@@ -267,9 +254,9 @@ def _boolean_intersect_volume(source, target):
         modifier = temp.modifiers.new("axiom3d_gate_intersect", "BOOLEAN")
         modifier.operation = "INTERSECT"
         try:
-            modifier.solver = "MANIFOLD"
+            modifier.solver = "EXACT"
         except TypeError:
-            pass  # solver enum differs; keep the default EXACT
+            pass  # solver enum differs; keep whatever the default is
         modifier.object = target
         deps = bpy.context.evaluated_depsgraph_get()
         ev = temp.evaluated_get(deps)
