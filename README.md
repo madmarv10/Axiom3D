@@ -1,129 +1,128 @@
-<p align="center">
-  <a href="https://opencode.ai">
-    <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="OpenCode logo">
-    </picture>
-  </a>
-</p>
-<p align="center">The open source AI coding agent.</p>
-<p align="center">
-  <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/opencode-ai"><img alt="npm" src="https://img.shields.io/npm/v/opencode-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/opencode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev" /></a>
-</p>
+# Axiom3D
 
-<p align="center">
-  <a href="README.md">English</a> |
-  <a href="README.zh.md">简体中文</a> |
-  <a href="README.zht.md">繁體中文</a> |
-  <a href="README.ko.md">한국어</a> |
-  <a href="README.de.md">Deutsch</a> |
-  <a href="README.es.md">Español</a> |
-  <a href="README.fr.md">Français</a> |
-  <a href="README.it.md">Italiano</a> |
-  <a href="README.da.md">Dansk</a> |
-  <a href="README.ja.md">日本語</a> |
-  <a href="README.pl.md">Polski</a> |
-  <a href="README.ru.md">Русский</a> |
-  <a href="README.bs.md">Bosanski</a> |
-  <a href="README.ar.md">العربية</a> |
-  <a href="README.no.md">Norsk</a> |
-  <a href="README.br.md">Português (Brasil)</a> |
-  <a href="README.th.md">ไทย</a> |
-  <a href="README.tr.md">Türkçe</a> |
-  <a href="README.uk.md">Українська</a> |
-  <a href="README.bn.md">বাংলা</a> |
-  <a href="README.gr.md">Ελληνικά</a> |
-  <a href="README.vi.md">Tiếng Việt</a>
-</p>
-
-[![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
+An AI harness for generating **3D assets in Blender**, built as a specialized fork of
+[opencode](https://opencode.ai). An LLM agent authors `bpy` scripts, and a persistent
+headless Blender session verifies every change through a staged gate before it is
+trusted — so hallucinated APIs and silently-broken geometry are caught, not shipped.
 
 ---
 
-### Installation
+## The problem
+
+Left alone, an LLM writing Blender Python fails in two characteristic ways:
+
+- **Hallucinated APIs** — operators, socket names, or arguments that don't exist in
+  the *installed* Blender version (training data lags the runtime).
+- **Silent geometry failures** — scripts that run without error but produce
+  non-manifold, inside-out, wrong-scale, floating, or self-intersecting meshes.
+
+Both are invisible until someone opens the file. Axiom3D makes them visible: the agent
+retrieves the real API, instantiates proven templates, and every scene change is
+verified by a gate that fails fast with structured evidence.
+
+## The approach
+
+| Problem | Fix |
+| --- | --- |
+| API drift vs. training data | Live introspection of the installed Blender + a symbol check that rejects unknown names with a suggestion |
+| Scripts that hang or crash Blender | A persistent worker with per-call timeouts, auto-snapshots, and kill/restore recovery |
+| Broken geometry | A staged verification gate: syntax → API → execute → evaluated-mesh geometry → trimesh quality/intersections → glTF roundtrip → multi-view render |
+| Reinventing every part | A parametric template library (rail, sleepers, columns, fence, platform, canopy truss) agents instantiate by setting parameters |
+| Guessing node trees | Agents never build Geometry Nodes — they set exposed inputs on prebuilt groups |
+
+## How it works
+
+- **Persistent worker** — a headless Blender 5.2 process that stays alive and speaks
+  newline-delimited JSON over localhost TCP. Every `exec` auto-snapshots first; on a
+  timeout the client kills and restarts the worker, then restores the last snapshot, so
+  a bad script never leaves the scene wrecked.
+- **Staged verification gate** (`blender-gate`) — runs a script through seven stages and
+  returns a structured JSON report with evidence. Script stages (syntax, API symbols,
+  exec) fail fast; scene stages (geometry, mesh quality, export roundtrip, render) all
+  run and accumulate issues so one report carries everything the agent needs to fix.
+- **Template library** (`blender-template`) — parametric Geometry Nodes assets with
+  exposed float inputs. `instantiate` bakes a template into a real, grounded, UV'd mesh.
+  Agents set parameters; they never build node trees.
+- **Live API corpus** (`blender-docs`) — resolves a human name ("Principled BSDF") to the
+  real node class and lists its actual sockets read from the running Blender, plus a
+  cookbook of tested pattern snippets and the 5.0–5.2 breaking changes this harness hit.
+- **Agent + tools** — an `axiom3d` agent wired with `blender-{exec, scene, checkpoint,
+  validate, render, export, gate, template, docs}`, following a retrieve → template →
+  gate → critique → export loop.
+
+## Requirements
+
+- **Blender 5.2** (headless; the harness pins this version exactly)
+- **[Bun](https://bun.sh)**
+
+## Getting started
 
 ```bash
-# YOLO
-curl -fsSL https://opencode.ai/install | bash
+bun install
 
-# Package managers
-npm i -g opencode-ai@latest        # or bun/pnpm/yarn
-scoop install opencode             # Windows
-choco install opencode             # Windows
-brew install anomalyco/tap/opencode # macOS and Linux (recommended, always up to date)
-brew install opencode              # macOS and Linux (official brew formula, updated less)
-sudo pacman -S opencode            # Arch Linux (Stable)
-paru -S opencode-bin               # Arch Linux (Latest from AUR)
-mise use -g opencode               # Any OS
-nix run nixpkgs#opencode           # or github:anomalyco/opencode for latest dev branch
+# Point the harness at your Blender install (or let it auto-discover on Windows):
+export BLENDER_PATH="/path/to/blender"     # e.g. .../Blender 5.2/blender.exe
+
+# Install the one Python dep into Blender's bundled interpreter:
+"<blender>/5.2/python/bin/python" -m pip install --no-deps \
+  --target blender/vendor -r blender/requirements.txt
+
+# Run the agent (the axiom3d agent is available in the TUI):
+bun run dev
 ```
 
-> [!TIP]
-> Remove versions older than 0.1.x before installing.
+Ask it to build something — e.g. *“make a 1 m crate”* or *“assemble a small railway
+station from templates”*. The agent retrieves the API, instantiates templates, and runs
+the gate until the asset passes.
 
-### Desktop App (BETA)
+The full design, phase history, and conventions live in [`PLAN.md`](./PLAN.md) and
+[`docs/axiom3d/conventions.md`](./docs/axiom3d/conventions.md).
 
-OpenCode is also available as a desktop application. Download directly from the [releases page](https://github.com/anomalyco/opencode/releases) or [opencode.ai/download](https://opencode.ai/download).
+## Development
 
-| Platform              | Download                           |
-| --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `opencode-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `opencode-desktop-mac-x64.dmg`     |
-| Windows               | `opencode-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm`, or `.AppImage`     |
+The harness tests spawn a real headless Blender. They share one worker through a port
+file, so they must run single-worker (parallel file workers race the scene and the
+snapshot pool):
 
 ```bash
-# macOS (Homebrew)
-brew install --cask opencode-desktop
-# Windows (Scoop)
-scoop bucket add extras; scoop install extras/opencode-desktop
+cd blender
+bun test --parallel=1 --no-isolate
 ```
 
-#### Installation Directory
-
-The install script respects the following priority order for the installation path:
-
-1. `$OPENCODE_INSTALL_DIR` - Custom installation directory
-2. `$XDG_BIN_DIR` - XDG Base Directory Specification compliant path
-3. `$HOME/bin` - Standard user binary directory (if it exists or can be created)
-4. `$HOME/.opencode/bin` - Default fallback
+Build-time validators (also run in CI):
 
 ```bash
-# Examples
-OPENCODE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
+blender --background --factory-startup --python blender/templates/build_library.py
+blender --background --factory-startup --python blender/corpus/validate_patterns.py
 ```
 
-### Agents
+CI (`.github/workflows/axiom3d.yml`) runs on every push/PR to `main`: it installs the
+pinned Blender 5.2.2 (cached), `bun typecheck`, the build validators, and the full
+headless Workbench test suite under Xvfb.
 
-OpenCode includes two built-in agents you can switch between with the `Tab` key.
+## Layout
 
-- **build** - Default, full-access agent for development work
-- **plan** - Read-only agent for analysis and code exploration
-  - Denies file edits by default
-  - Asks permission before running bash commands
-  - Ideal for exploring unfamiliar codebases or planning changes
+```
+blender/
+├── worker.py        persistent session: JSON-RPC loop, snapshot/restore, watchdog
+├── rpc/             command handlers (exec, gate, templates, docs, render, export, ...)
+├── gate/            staged verification pipeline + AST API-symbol checker
+├── geom/            evaluated-mesh geometry + trimesh quality checks
+├── templates/       parametric GN asset library + build/validate script
+├── corpus/          live bpy introspection + pattern cookbook + breaking changes
+└── tests/           bun test suite (worker, tools, gate, templates, corpus)
+.opencode/
+├── tools/           blender-* agent tools
+├── agent/axiom3d.md the agent's workflow prompt
+├── skills/          blender-asset-authoring skill
+└── lib/             TypeScript worker client (spawn, RPC, timeout, restart)
+```
 
-Also included is a **general** subagent for complex searches and multistep tasks.
-This is used internally and can be invoked using `@general` in messages.
+## Credits
 
-Learn more about [agents](https://opencode.ai/docs/agents).
-
-### Documentation
-
-For more info on how to configure OpenCode, [**head over to our docs**](https://opencode.ai/docs).
-
-### Contributing
-
-If you're interested in contributing to OpenCode, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
-
-### Building on OpenCode
-
-If you are working on a project that's related to OpenCode and is using "opencode" as part of its name, for example "opencode-dashboard" or "opencode-mobile", please add a note to your README to clarify that it is not built by the OpenCode team and is not affiliated with us in any way.
+Built on [opencode](https://opencode.ai), the open-source AI coding agent.
 
 ---
 
-**Join our community** [Discord](https://discord.gg/opencode) | [X.com](https://x.com/opencode)
+**Axiom3D** — Blender 5.2 · persistent worker · staged verification gate · template
+library · live API corpus
