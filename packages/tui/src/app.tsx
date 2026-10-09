@@ -41,6 +41,8 @@ import { LocalProvider, useLocal } from "./context/local"
 import { PermissionProvider } from "./context/permission"
 import { DialogModel } from "./component/dialog-model"
 import { useConnected } from "./component/use-connected"
+import { BlenderStatus } from "./component/blender-status"
+import { MatrixRain } from "./component/matrix-rain"
 import { DialogMcp } from "./component/dialog-mcp"
 import { DialogStatus } from "./component/dialog-status"
 import { DialogDebug } from "./component/dialog-debug"
@@ -1106,11 +1108,24 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
           : undefined
       }
     >
+      <box position="absolute" top={0} left={0} right={0} bottom={0} zIndex={0}>
+        <MatrixRain />
+      </box>
       <Show when={Flag.OPENCODE_SHOW_TTFD}>
         <TimeToFirstDraw />
       </Show>
       <Show when={ready()}>
-        <box flexGrow={1} minHeight={0} flexDirection="column">
+        <box flexGrow={1} minHeight={0} flexDirection="column" zIndex={1}>
+          <box
+            width="100%"
+            flexDirection="row"
+            justifyContent="flex-end"
+            flexShrink={0}
+            paddingTop={1}
+            paddingRight={2}
+          >
+            <BlenderStatus />
+          </box>
           <Switch>
             <Match when={route.data.type === "home"}>
               <Home />
