@@ -192,11 +192,25 @@ timeout; on timeout it kills and restarts the worker, restoring last snapshot.
   corpus 6).
 
 ### Phase 6 — Promotion / packaging (after stable)
-- [ ] Optionally promote tools into `packages/core/src/tool/` builtins and/or wrap client
-  as MCP server
-- [ ] `blender-asset-authoring` skill, docs, CI (pytest + `bun typecheck` + headless
-  Workbench e2e smoke)
-- Note: CI renders use Workbench/CPU only (no GPU guarantee).
+- [x] `blender-asset-authoring` skill (`.opencode/skills/blender-asset-authoring/SKILL.md`):
+  the on-demand reference for the authoring workflow, gate stages + issue vocabulary,
+  conventions, template list, and the verified 5.2 gotchas. Complements the lean agent
+  prompt (heavy detail lives here, loaded only when relevant).
+- [x] CI (`.github/workflows/axiom3d.yml`): on push/PR to main — installs the pinned
+  Blender 5.2.2 Linux tarball (cached), installs trimesh into its bundled Python, then
+  runs `bun typecheck`, the build-time validators (template library + pattern cookbook),
+  and the headless Workbench test suite (`bun test --parallel=1 --no-isolate` from
+  blender/). The harness tests live outside packages/, so the monorepo `bun turbo test`
+  does not cover them; this workflow does. Renders are Workbench/CPU only (no GPU).
+- Deferred — promote tools into `packages/core/src/tool/` builtins: the nine Blender
+  tools are Axiom3D-harness-specific, not generic opencode capabilities. Pushing them
+  into core would pollute the product for every user; they correctly stay as project
+  tools (`.opencode/tools/`). Locked decision #4's spirit: domain tools stay local.
+- Deferred — MCP server wrap: viable (the `@modelcontextprotocol/sdk` is already a
+  packages/opencode dependency) but the harness is fully integrated in opencode, its
+  target platform. An MCP server adds a parallel integration surface needing its own
+  tests and maintenance for no current consumer. Noted as a clean future path if the
+  harness is ever reused by non-opencode MCP clients.
 
 ## Verification
 

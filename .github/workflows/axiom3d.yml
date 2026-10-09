@@ -1,0 +1,92 @@
+name: axiom3d
+
+# Axiom3D Blender harness CI. The harness tests live in blender/ (outside packages/),
+# so they are not covered by the monorepo `bun turbo test`. This workflow installs the
+# pinned Blender 5.2.2 (cached), wires it up, and runs typecheck + the headless
+# Workbench test suite + the build-time validators. CI renders use Workbench/CPU only
+# (no GPU guarantee), which the render tool already defaults to.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: axiom3d-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BLENDER_VERSION: "5.2.2"
+
+jobs:
+  harness:
+    name: harness (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Cache Blender
+        id: cache-blender
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ github.workspace }}/.blender
+          key: blender-${{ env.BLENDER_VERSION }}-linux-x64
+
+      - name: Install Blender ${{ env.BLENDER_VERSION }}
+        if: steps.cache-blender.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/.blender"
+          curl -fL --retry 3 \
+            "https://download.blender.org/release/Blender5.2/blender-${BLENDER_VERSION}-linux-x64.tar.xz" \
+            -o /tmp/blender.tar.xz
+          tar -xJf /tmp/blender.tar.xz -C "$GITHUB_WORKSPACE/.blender" --strip-components=1
+          rm /tmp/blender.tar.xz
+
+      - name: Install trimesh into Blender's bundled Python
+        run: |
+          set -euo pipefail
+          PY=$(find "$GITHUB_WORKSPACE/.blender/5.2/python/bin" -maxdepth 1 -name 'python3*' -type f | head -n1)
+          echo "using $PY"
+          "$PY" -m ensurepip --upgrade >/dev/null 2>&1 || true
+          "$PY" -m pip install --no-deps --target "$GITHUB_WORKSPACE/blender/vendor" -r blender/requirements.txt
+
+      - name: Run typecheck
+        run: bun typecheck
+
+      - name: Build + validate template library
+        env:
+          BLENDER_PATH: ${{ github.workspace }}/.blender/blender
+        run: |
+          set -uo pipefail
+          "$BLENDER_PATH" --background --factory-startup --python blender/templates/build_library.py 2>&1 | tee /tmp/build-library.log
+          grep -q "BUILD OK" /tmp/build-library.log
+
+      - name: Validate pattern cookbook
+        env:
+          BLENDER_PATH: ${{ github.workspace }}/.blender/blender
+        run: |
+          set -uo pipefail
+          "$BLENDER_PATH" --background --factory-startup --python blender/corpus/validate_patterns.py 2>&1 | tee /tmp/validate-patterns.log
+          grep -q "PATTERNS OK" /tmp/validate-patterns.log
+
+      - name: Run harness test suite (headless, Workbench)
+        env:
+          BLENDER_PATH: ${{ github.workspace }}/.blender/blender
+        timeout-minutes: 25
+        run: |
+          cd blender
+          bun test --parallel=1 --no-isolate
