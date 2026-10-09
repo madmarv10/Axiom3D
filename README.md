@@ -67,10 +67,18 @@ export BLENDER_PATH="/path/to/blender"     # e.g. .../Blender 5.2/blender.exe
 "<blender>/5.2/python/bin/python" -m pip install --no-deps \
   --target blender/vendor -r blender/requirements.txt
 
-# Run the agent (the axiom3d agent is available in the TUI):
-bun run dev
+# Register the global `axiom3d` command (one time):
+bun link
 ```
 
+Then start it from anywhere:
+
+```bash
+axiom3d
+```
+
+`axiom3d` is a thin launcher (see `script/axiom3d.ts`) that starts the same thing as
+`bun run dev` — the opencode TUI with the `axiom3d` agent — and forwards any arguments.
 Ask it to build something — e.g. *“make a 1 m crate”* or *“assemble a small railway
 station from templates”*. The agent retrieves the API, instantiates templates, and runs
 the gate until the asset passes.
@@ -103,6 +111,7 @@ headless Workbench test suite under Xvfb.
 ## Layout
 
 ```
+script/axiom3d.ts      global `axiom3d` launcher (registered via `bun link`)
 blender/
 ├── worker.py        persistent session: JSON-RPC loop, snapshot/restore, watchdog
 ├── rpc/             command handlers (exec, gate, templates, docs, render, export, ...)
